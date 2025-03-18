@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs').promises;
+const path = require('path');
 const cloudinary = require('cloudinary').v2;
 
 // Configuração do Cloudinary
@@ -16,6 +17,10 @@ app.use(express.json());
 
 const PORT = 3000;
 
+// Criar diretório temp se não existir
+const tempDir = path.join(__dirname, '..', 'temp');
+fs.mkdir(tempDir, { recursive: true }).catch(console.error);
+
 app.post('/generate-pdf', async (req, res) => {
     try {
         const { nome, cpf } = req.body;
@@ -24,7 +29,8 @@ app.post('/generate-pdf', async (req, res) => {
             return res.status(400).json({ error: 'Nome e CPF são obrigatórios' });
         }
 
-        const templateBytes = await fs.readFile('./templates/serasa-template.pdf');
+        const templatePath = path.join(__dirname, '..', 'templates', 'serasa-template.pdf');
+        const templateBytes = await fs.readFile(templatePath);
         const pdfDoc = await PDFDocument.load(templateBytes);
         const form = pdfDoc.getForm();
 
@@ -35,8 +41,8 @@ app.post('/generate-pdf', async (req, res) => {
 
         const pdfBytes = await pdfDoc.save();
         
-        // Salvar temporariamente o arquivo
-        const tempPath = `./temp/${cpf}_${Date.now()}.pdf`;
+        // Usar path.join para criar caminhos absolutos
+        const tempPath = path.join(tempDir, `${cpf}_${Date.now()}.pdf`);
         await fs.writeFile(tempPath, pdfBytes);
 
         // Fazer upload para o Cloudinary
@@ -64,4 +70,5 @@ app.post('/generate-pdf', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 
